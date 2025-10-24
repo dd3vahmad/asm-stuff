@@ -40,3 +40,4 @@ link:
 test:
 	@./ast6 -f a6f6.txt -w hello 
 
+run: of link test
