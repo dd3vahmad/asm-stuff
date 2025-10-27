@@ -1,43 +1,52 @@
-# CS 218 Assignment #11
-# Simple make file for asst #11
+# CS 218 Assignment 6 Makefile
+# Simple makefile for ASM + C++ linking
 
-OBJS	= main.o ast6procs.o
-ASM	= yasm -g dwarf2 -f elf64
-CC	= g++ -g -std=c++11 -z noexecstack
+OBJS = ast6.o
+ASM = nasm -g -f elf64
+CC = g++ -g -O0 -std=c++11 -z noexecstack -no-pie
 
+all: ast6
 
-all: main
+ast6.o: ast6.asm
+	$(ASM) ast6.asm -o ast6.o
 
-main.o: main.cpp
-	$(CC) -c main.cpp
-
-ast6procs.o: ast6procs.asm
-	$(ASM) ast6procs.asm -l ast6procs.lst
-
-main: $(OBJS)
-	$(CC) -no-pie -o main $(OBJS)
-
-# -----
-# clean by removing object files.
+ast6: dev.cpp ast6.o
+	$(CC) -o ast6 dev.cpp ast6.o
 
 clean:
-	rm  $(OBJS)
-	rm  ast6procs.lst
+	rm -f $(OBJS) ast6 *.lst
 
+# Your added targets (updated with flags)
+.PHONY: of link test run dbg
 
-# I added this
-.PHONY: of link test
-
-# for creating object file
 of:
-	@nasm -f elf64 ast6.asm -o ast6.o
+	@nasm -g -f elf64 ast6.asm -o ast6.o
 
-# for linking the .cpp test code with our asm code
 link:
-	@g++ dev.cpp ast6.o -o ast6
+	@$(CC) -g dev.cpp ast6.o -o ast6
 
-# to test the link executable output
 test:
-	@./ast6 -f a6f6.txt -w hello 
+	@./ast6 -f a6f3.txt -w hello_ahmad_rabiu_12
 
 run: of link test
+
+testT:
+	@time ./ast6 -f a6f3.txt -w hello
+
+runT: of link testT
+
+dbg:
+	@gdb ./ast6
+
+# GDB shortcuts (run in GDB session)
+brkp:
+	@break checkParams
+
+runt:
+	@run -f a6f3.txt -w hello
+
+step:
+	@si
+
+next:
+	@ni

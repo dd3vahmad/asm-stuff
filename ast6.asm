@@ -62,10 +62,9 @@ checkParams:
     push rbp
     mov rbp, rsp
     push rbx                     ; save rbx, non-volatile register
-    push rcx                     ; save wordSaved parameter
 
     ; ---------------------------------------------------------
-    ; Save argv in r10 for later use (rsi will be clobbered)
+    ; Save argv in r10 for later use (rsi will be clobbered by syscalls)
     ; ---------------------------------------------------------
     mov r10, rsi                 ; r10 = argv[]
 
@@ -122,8 +121,8 @@ checkParams:
     ; ---------------------------------------------------------
     ; 5. Validate and copy word from argv[4]
     ; argv[4] is at [r10 + 32]
-    ; Compute length, ensure < MAXWORDLENGTH (rdx)
-    ; Copy characters to wordSaved (rcx, restored from stack) and null-terminate
+    ; Compute length, ensure <= MAXWORDLENGTH (to fit in array of size MAX+1)
+    ; Copy characters to wordSaved (rcx) and null-terminate
     ; ---------------------------------------------------------
     mov rbx, [r10 + 32]          ; load pointer to word (argv[4])
     xor r9, r9                   ; counter = 0
@@ -133,15 +132,15 @@ checkParams:
     je .len_check_done
     inc r9
     cmp r9, rdx
-    jge .invalid_word_len
+    ja .invalid_word_len         ; jump if r9 > rdx (allow == rdx)
     jmp .len_check_loop
 .len_check_done:
     ; Now copy the word
-    pop rdi                      ; restore wordSaved to rdi (dest)
-    mov rsi, rbx                 ; src = word ptr
-    mov rcx, r9                  ; count = length
+    mov rsi, [r10 + 32]          ; src = argv[4]
+    mov rdi, rcx                 ; dest = wordSaved
+    mov rcx, r9                  ; set count for rep movsb
     rep movsb
-    mov byte [rdi], NULL         ; ensure null-terminate
+    mov byte [rdi], NULL         ; ensure null-terminate after copied chars
 
     ; ---------------------------------------------------------
     ; All checks passed - return true (1)
@@ -175,7 +174,6 @@ checkParams:
     mov rax, FALSE
     jmp .done
 .done:
-    pop rcx                      ; restore stack if needed, but since pushed before errors
     pop rbx
     pop rbp
     ret
