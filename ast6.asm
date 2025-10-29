@@ -219,6 +219,10 @@ getWord:
     mov r14, buffer              ; r14 = absolute address of buffer
     mov rbx, [buffCurr]          ; rbx = current position value
 
+    ; Quick check: if fd invalid (<0 or 0), early EOF
+    cmp r8, 0
+    jle .eof_reached
+
     ; ---------------------------------------------------------
     ; Skip leading whitespace (characters <= SPACE_ASCII)
     ; Loop until non-whitespace or EOF
@@ -226,6 +230,10 @@ getWord:
 .skip_whitespace:
     cmp rbx, [buffIndex]
     jge .refill_for_skip
+    ; Bounds check: if rbx >= BUFFSIZE, force refill
+    mov rax, BUFFSIZE
+    cmp rbx, rax
+    jae .refill_for_skip
     movzx eax, byte [r14 + rbx]
     cmp eax, SPACE_ASCII
     jg .start_word
@@ -263,6 +271,10 @@ getWord:
 .collect_next_char:
     cmp rbx, [buffIndex]
     jge .refill_for_collect
+    ; Bounds check
+    mov rax, BUFFSIZE
+    cmp rbx, rax
+    jae .refill_for_collect
     movzx eax, byte [r14 + rbx]
     inc rbx
     mov [buffCurr], rbx
@@ -275,6 +287,7 @@ getWord:
     jle .end_word_collection
     mov rbx, 0                   ; reset position after refill
     mov [buffCurr], rbx
+    ; Bounds check for new char
     movzx eax, byte [r14 + rbx]
     inc rbx
     mov [buffCurr], rbx
@@ -300,13 +313,13 @@ getWord:
     mov [buffCurr], rbx
 
     ; ---------------------------------------------------------
-    ; Validate word: check if total length < MAXWORDLENGTH
+    ; Validate word: check if total length <= MAXWORDLENGTH
     ; Set isValid accordingly
     ; Always return true if a word was found (even if invalid length)
     ; to continue processing; validity checked in caller
     ; ---------------------------------------------------------
     cmp r13, rsi
-    jl .word_is_valid
+    jbe .word_is_valid           ; unsigned <=
     mov byte [r11], FALSE
     jmp .return_success
 .word_is_valid:
@@ -332,13 +345,31 @@ getWord:
 ; Returns rax = bytes read (0 or negative on EOF/error)
 ; Sets buffIndex to bytes read, buffCurr to 0
 refill_buffer:
+    ; Quick check fd
+    cmp r8, 0
+    jl .end_read                 ; invalid fd, early out
+    push rcx                     ; save caller-saved (syscall clobbers)
+    push rdx
+    push r11                     ; save r11 (clobbered by syscall)
     mov rax, SYS_read
     mov rdi, r8                  ; file descriptor
     mov rsi, buffer              ; buffer address
     mov rdx, BUFFSIZE            ; max bytes to read
     syscall
+    pop r11                      ; restore r11
+    pop rdx
+    pop rcx
+    test rax, rax
+    js .end_read                 ; error (<0), set 0
+    jz .end_read                 ; EOF (0), set 0
+    mov byte [buffer + rax], NULL ; null terminate
     mov [buffIndex], rax         ; store bytes read
     mov qword [buffCurr], 0      ; reset current position
+    ret
+.end_read:
+    mov qword [buffIndex], 0     ; set to 0 on error/EOF
+    mov qword [buffCurr], 0
+    xor rax, rax                 ; return 0
     ret
 
 ; rdi = char[] wordObtained
