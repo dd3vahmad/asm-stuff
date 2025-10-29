@@ -95,12 +95,16 @@ checkParams:
     ; Store successful file descriptor in [r8] via reference
     ; If open fails (rax < 0), error
     ; ---------------------------------------------------------
+    push rcx                     ; save wordSaved ptr (rcx, clobbered by syscall)
+    push rdx                     ; save MAXWORDLENGTH
     mov rbx, [r10 + 16]          ; load pointer to filename (argv[2])
     mov rax, SYS_open
     mov rdi, rbx                 ; arg1: filename
     mov rsi, O_RDONLY            ; arg2: read-only mode
     xor rdx, rdx                 ; arg3: mode (unused for read-only)
     syscall
+    pop rdx                      ; restore MAXWORDLENGTH
+    pop rcx                      ; restore wordSaved ptr
     cmp rax, 0
     jl .invalid_file
     mov [r8], rax                ; store file descriptor via reference
