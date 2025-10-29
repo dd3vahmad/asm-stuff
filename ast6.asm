@@ -135,12 +135,19 @@ checkParams:
     ja .invalid_word_len         ; jump if r9 > rdx (allow == rdx)
     jmp .len_check_loop
 .len_check_done:
-    ; Now copy the word
-    mov rsi, [r10 + 32]          ; src = argv[4]
-    mov rdi, rcx                 ; dest = wordSaved
-    mov rcx, r9                  ; set count for rep movsb
-    rep movsb
-    mov byte [rdi], NULL         ; ensure null-terminate after copied chars
+    ; Now copy the word (manual loop)
+    mov r11, [r10 + 32]          ; r11 = src pointer (argv[4])
+    mov rdi, rcx                 ; rdi = dest pointer (wordSaved)
+    xor rcx, rcx                 ; rcx = copy index = 0
+.copy_loop:
+    cmp rcx, r9                  ; if copy index >= length, done
+    jge .copy_done
+    mov al, [r11 + rcx]          ; load byte from src at index
+    mov [rdi + rcx], al          ; store byte to dest at index
+    inc rcx                      ; increment index
+    jmp .copy_loop
+.copy_done:
+    mov byte [rdi + rcx], NULL   ; null-terminate after copied chars
 
     ; ---------------------------------------------------------
     ; All checks passed - return true (1)
