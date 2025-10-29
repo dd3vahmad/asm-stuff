@@ -23,10 +23,10 @@ of:
 	@nasm -g -f elf64 ast6.asm -o ast6.o
 
 link:
-	@$(CC) -g dev.cpp ast6.o -o ast6
+	@$(CC) -g -no-pie dev.cpp ast6.o -o ast6
 
 test:
-	@./ast6 -f a6f3.txt -w hello_ahmad_rabiu_12
+	@./ast6 -f a6f3.txt -w hello
 
 run: of link test
 

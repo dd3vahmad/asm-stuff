@@ -15,7 +15,7 @@ NEWLINE equ 10
 
 SYS_read	equ	0			; system call code for read
 SYS_write	equ	1			; system call code for write
-SYS_open	equ	2			; system call code for file open
+SYS_open	equ	2			; system call for file open
 SYS_close	equ	3			; system call code for file close
 SYS_fork	equ	57			; system call code for fork
 SYS_exit	equ	60			; system call code for terminate
@@ -149,27 +149,27 @@ checkParams:
     jmp .done
 
 .invalid_arg_count:
-    lea rdi, [rel invalidArgumentCount]
+    mov rdi, invalidArgumentCount
     call printString
     mov rax, FALSE
     jmp .done
 .invalid_f:
-    lea rdi, [rel invalidFArgument]
+    mov rdi, invalidFArgument
     call printString
     mov rax, FALSE
     jmp .done
 .invalid_w:
-    lea rdi, [rel invalidWArgument]
+    mov rdi, invalidWArgument
     call printString
     mov rax, FALSE
     jmp .done
 .invalid_file:
-    lea rdi, [rel invalidFile]
+    mov rdi, invalidFile
     call printString
     mov rax, FALSE
     jmp .done
 .invalid_word_len:
-    lea rdi, [rel invalidWord]
+    mov rdi, invalidWord
     call printString
     mov rax, FALSE
     jmp .done
@@ -197,23 +197,23 @@ getWord:
     ; r9 = wordObtained (rdi)
     ; r10 = MAXWORDLENGTH - 1 (for copy limit)
     ; r11 = &isValid (rdx)
-    ; r14 = buffer base address (rel buffer)
-    ; rbx = current position value (load from [rel buffCurr])
+    ; r14 = buffer base address (buffer)
+    ; rbx = current position value (load from [buffCurr])
     ; ---------------------------------------------------------
     mov r8, [rcx]                ; load fd from reference
     mov r9, rdi                  ; dest buffer
     mov r10, rsi
     dec r10                      ; max copy positions (leave room for null)
     mov r11, rdx                 ; &isValid
-    lea r14, [rel buffer]        ; r14 = absolute address of buffer
-    mov rbx, [rel buffCurr]      ; rbx = current position value
+    mov r14, buffer              ; r14 = absolute address of buffer
+    mov rbx, [buffCurr]          ; rbx = current position value
 
     ; ---------------------------------------------------------
     ; Skip leading whitespace (characters <= SPACE_ASCII)
     ; Loop until non-whitespace or EOF
     ; ---------------------------------------------------------
 .skip_whitespace:
-    cmp rbx, [rel buffIndex]
+    cmp rbx, [buffIndex]
     jge .refill_for_skip
     movzx eax, byte [r14 + rbx]
     cmp eax, SPACE_ASCII
@@ -230,7 +230,7 @@ getWord:
 .start_word:
     ; Found start of word (eax holds first non-whitespace char)
     inc rbx                      ; advance past first char
-    mov [rel buffCurr], rbx      ; update global position
+    mov [buffCurr], rbx          ; update global position
     mov r13, 0                   ; r13 = total word length counter
     mov r12, 0                   ; r12 = copy position counter
 
@@ -250,11 +250,11 @@ getWord:
     ; Keep special characters (anything > space)
     ; ---------------------------------------------------------
 .collect_next_char:
-    cmp rbx, [rel buffIndex]
+    cmp rbx, [buffIndex]
     jge .refill_for_collect
     movzx eax, byte [r14 + rbx]
     inc rbx
-    mov [rel buffCurr], rbx
+    mov [buffCurr], rbx
     cmp eax, SPACE_ASCII
     jg .process_char
     jmp .end_word_collection
@@ -263,10 +263,10 @@ getWord:
     cmp rax, 0
     jle .end_word_collection
     mov rbx, 0                   ; reset position after refill
-    mov [rel buffCurr], rbx
+    mov [buffCurr], rbx
     movzx eax, byte [r14 + rbx]
     inc rbx
-    mov [rel buffCurr], rbx
+    mov [buffCurr], rbx
     cmp eax, SPACE_ASCII
     jg .process_char
     jmp .end_word_collection
@@ -286,7 +286,7 @@ getWord:
     mov byte [r9 + r12], NULL
 
     ; Update global buffer position (in case of refill)
-    mov [rel buffCurr], rbx
+    mov [buffCurr], rbx
 
     ; ---------------------------------------------------------
     ; Validate word: check if total length < MAXWORDLENGTH
@@ -323,12 +323,11 @@ getWord:
 refill_buffer:
     mov rax, SYS_read
     mov rdi, r8                  ; file descriptor
-    lea rsi, [rel buffer]        ; buffer address
+    mov rsi, buffer              ; buffer address
     mov rdx, BUFFSIZE            ; max bytes to read
-    mov r9w, 0x9231              ; set required flag before syscall
     syscall
-    mov [rel buffIndex], rax     ; store bytes read
-    mov qword [rel buffCurr], 0  ; reset current position
+    mov [buffIndex], rax         ; store bytes read
+    mov qword [buffCurr], 0      ; reset current position
     ret
 
 ; rdi = char[] wordObtained
@@ -342,7 +341,7 @@ checkWord:
     ; ---------------------------------------------------------
     ; Compare wordObtained and wordToCheck character by character
     ; If exact match (including null terminator), increment counter
-    ; Set rax to 0x2B (true) or -0x2B (false) as specified
+    ; No return value (void, as per reference)
     ; ---------------------------------------------------------
     mov rcx, rdi                 ; pointer to wordObtained
     mov r8, rsi                  ; pointer to wordToCheck
@@ -359,11 +358,9 @@ checkWord:
 
 .match_found:
     inc dword [rdx]              ; increment totalWords counter
-    mov rax, 0x2B                ; set true value
     jmp .compare_done
 
 .mismatch:
-    mov rax, -0x2B               ; set false value
 
 .compare_done:
     pop rbp
@@ -387,13 +384,13 @@ closeFile:
 
 global getLength
 getLength:
-        mov	rax, 0
-    strCountLoop2:
-        cmp	byte [rdi+rax], NULL
-        je	strCountLoopDone2
-        inc	rax
-        jmp	strCountLoop2
-    strCountLoopDone2:
+    mov	rax, 0
+strCountLoop2:
+    cmp	byte [rdi+rax], NULL
+    je	strCountLoopDone2
+    inc	rax
+    jmp	strCountLoop2
+strCountLoopDone2:
 ret
 
 global	printString
