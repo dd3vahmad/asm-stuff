@@ -1,7 +1,8 @@
 ; *****************************************************************
 ; Simple Assembly Program to Print Word and Its Length
-; Usage: ./main -w <word>
+; Usage: ./main -w <word> (word max 5 chars)
 ; Prints: <word> <length>
+; Errors on invalid args, wrong flag, or word > 5 chars
 ; *****************************************************************
 
 section .data
@@ -22,8 +23,13 @@ STDIN       equ 0
 STDOUT      equ 1
 STDERR      equ 2
 
+MAXWORDLENGTH equ 5
+
 ; Error message for invalid args
-invalid_args db "Usage: ./main -w <word>", NEWLINE, NULL
+invalid_args db "Usage: ./main -w <word> (max 5 chars)", NEWLINE, NULL
+
+; Error for word too long
+word_too_long db "Error: Word too long (max 5 chars)", NEWLINE, NULL
 
 ; Space for printing between word and length
 space_char db SPACE, NULL
@@ -73,6 +79,10 @@ _start:
     call getLength
     mov r13, rax         ; r13 = length
 
+    ; Check if word length > MAXWORDLENGTH
+    cmp r13, MAXWORDLENGTH
+    ja print_word_too_long
+
     ; Print the word
     mov rdi, r12
     call printString
@@ -107,6 +117,17 @@ print_usage:
     pop rbx
     pop rbp
     mov rdi, invalid_args
+    call printString
+    mov rax, SYS_exit
+    mov rdi, 1
+    syscall
+
+print_word_too_long:
+    pop r13
+    pop r12
+    pop rbx
+    pop rbp
+    mov rdi, word_too_long
     call printString
     mov rax, SYS_exit
     mov rdi, 1

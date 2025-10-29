@@ -132,7 +132,7 @@ checkParams:
     je .len_check_done
     inc r9
     cmp r9, rdx
-    ja .invalid_word_len         ; jump if r9 > rdx (allow == rdx)
+    ja .invalid_word_len         ; jump if r9 > rdx (allow <= rdx)
     jmp .len_check_loop
 .len_check_done:
     ; Now copy the word (manual loop)
