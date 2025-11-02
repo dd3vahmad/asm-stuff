@@ -1,52 +1,19 @@
 # CS 218 Assignment 6 Makefile
 # Simple makefile for ASM + C++ linking
 
-OBJS = ast6.o
+OBJS = main.o
 ASM = nasm -g -f elf64
 CC = g++ -g -O0 -std=c++11 -z noexecstack -no-pie
 
-all: ast6
+all: main
 
-ast6.o: ast6.asm
-	$(ASM) ast6.asm -o ast6.o
+main.o: main.asm
+	$(ASM) main.asm -o main.o
 
-ast6: dev.cpp ast6.o
-	$(CC) -o ast6 dev.cpp ast6.o
+main: main.cpp main.o
+	$(CC) -o main main.cpp main.o
 
 clean:
-	rm -f $(OBJS) ast6 *.lst
+	rm -f $(OBJS) main *.lst
 
 # Your added targets (updated with flags)
-.PHONY: of link test run dbg
-
-of:
-	@nasm -g -f elf64 ast6.asm -o ast6.o
-
-link:
-	@$(CC) -g -no-pie dev.cpp ast6.o -o ast6
-
-test:
-	@./ast6 -f a6f3.txt -w granted
-
-run: of link test
-
-testT:
-	@time ./ast6 -f a6f3.txt -w hello
-
-runT: of link testT
-
-dbg:
-	@gdb ./ast6
-
-# GDB shortcuts (run in GDB session)
-brkp:
-	@break checkParams
-
-runt:
-	@run -f a6f3.txt -w hello
-
-step:
-	@si
-
-next:
-	@ni
