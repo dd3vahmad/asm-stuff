@@ -26,7 +26,7 @@ link:
 	@$(CC) -g -no-pie dev.cpp ast6.o -o ast6
 
 test:
-	@./ast6 -f a6f3.txt -w hello
+	@./ast6 -f a6f3.txt -w granted
 
 run: of link test
 

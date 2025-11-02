@@ -375,6 +375,7 @@ refill_buffer:
 ; rdi = char[] wordObtained
 ; rsi = char[] wordToCheck
 ; rdx = int& totalWords (reference to counter)
+; Returns: RAX = TRUE if match, FALSE otherwise
 global checkWord
 checkWord:
     push rbp
@@ -382,27 +383,29 @@ checkWord:
 
     ; ---------------------------------------------------------
     ; Compare wordObtained and wordToCheck character by character
-    ; If exact match (including null terminator), increment counter
-    ; No return value (void, as per reference)
+    ; If exact match (including null terminator), increment counter and return TRUE
+    ; Otherwise, return FALSE
     ; ---------------------------------------------------------
-    mov rcx, rdi                 ; pointer to wordObtained
-    mov r8, rsi                  ; pointer to wordToCheck
+    mov rcx, rdi                 ; rcx = pointer to wordObtained
+    mov r8, rsi                  ; r8 = pointer to wordToCheck
 
 .compare_loop:
     mov al, [rcx]                ; load next char from obtained
     cmp al, [r8]                 ; compare with toCheck
-    jne .mismatch
-    cmp al, NULL                 ; check for end of string
-    je .match_found
+    jne .mismatch                ; if not equal, no match
+    cmp al, NULL                 ; check for end of string (both should hit null at same time)
+    je .match_found              ; if null, exact match
     inc rcx                      ; advance pointers
     inc r8
     jmp .compare_loop
 
 .match_found:
     inc dword [rdx]              ; increment totalWords counter
+    mov rax, TRUE                ; return TRUE
     jmp .compare_done
 
 .mismatch:
+    mov rax, FALSE               ; return FALSE
 
 .compare_done:
     pop rbp
