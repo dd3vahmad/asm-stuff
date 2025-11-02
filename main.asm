@@ -73,7 +73,7 @@ checkParams:
     ; Anything else results in an error
     ; ---------------------------------------------------------
     cmp rdi, 5
-    jne .invalid_arg_count
+    jne invalid_arg_count
 
     ; ---------------------------------------------------------
     ; 2. Check argv[1] == "-f"
@@ -82,11 +82,11 @@ checkParams:
     ; ---------------------------------------------------------
     mov rbx, [r10 + 8]           ; load pointer to argv[1]
     cmp byte [rbx], '-'
-    jne .invalid_f
+    jne invalid_f
     cmp byte [rbx + 1], 'f'
-    jne .invalid_f
+    jne invalid_f
     cmp byte [rbx + 2], NULL
-    jne .invalid_f
+    jne invalid_f
 
     ; ---------------------------------------------------------
     ; 3. Open the file specified in argv[2]
@@ -101,12 +101,12 @@ checkParams:
     mov rax, SYS_open
     mov rdi, rbx                 ; arg1: filename
     mov rsi, O_RDONLY            ; arg2: read-only mode
-    xor rdx, rdx                 ; arg3: mode (unused for read-only)
+    mov rdx, 0                   ; arg3: mode (unused for read-only)
     syscall
     pop rdx                      ; restore MAXWORDLENGTH
     pop rcx                      ; restore wordSaved ptr
     cmp rax, 0
-    jl .invalid_file
+    jl invalid_file
     mov [r8], rax                ; store file descriptor via reference
 
     ; ---------------------------------------------------------
@@ -116,11 +116,11 @@ checkParams:
     ; ---------------------------------------------------------
     mov rbx, [r10 + 24]          ; load pointer to argv[3]
     cmp byte [rbx], '-'
-    jne .invalid_w
+    jne invalid_w
     cmp byte [rbx + 1], 'w'
-    jne .invalid_w
+    jne invalid_w
     cmp byte [rbx + 2], NULL
-    jne .invalid_w
+    jne invalid_w
 
     ; ---------------------------------------------------------
     ; 5. Validate and copy word from argv[4]
@@ -129,62 +129,62 @@ checkParams:
     ; Copy characters to wordSaved (rcx) and null-terminate
     ; ---------------------------------------------------------
     mov rbx, [r10 + 32]          ; load pointer to word (argv[4])
-    xor r9, r9                   ; counter = 0
-.len_check_loop:
+    mov r9, 0                   ; counter = 0
+len_check_loop:
     mov al, [rbx + r9]
     cmp al, NULL
-    je .len_check_done
+    je len_check_done
     inc r9
     cmp r9, rdx
-    ja .invalid_word_len         ; jump if r9 > rdx (allow <= rdx)
-    jmp .len_check_loop
-.len_check_done:
+    ja invalid_word_len         ; jump if r9 > rdx (allow <= rdx)
+    jmp len_check_loop
+len_check_done:
     ; Now copy the word (manual loop)
     mov r11, [r10 + 32]          ; r11 = src pointer (argv[4])
     mov rdi, rcx                 ; rdi = dest pointer (wordSaved)
-    xor rcx, rcx                 ; rcx = copy index = 0
-.copy_loop:
+    mov rcx, 0                 ; rcx = copy index = 0
+copy_loop:
     cmp rcx, r9                  ; if copy index >= length, done
-    jge .copy_done
+    jge copy_done
     mov al, [r11 + rcx]          ; load byte from src at index
     mov [rdi + rcx], al          ; store byte to dest at index
     inc rcx                      ; increment index
-    jmp .copy_loop
-.copy_done:
+    jmp copy_loop
+copy_done:
     mov byte [rdi + rcx], NULL   ; null-terminate after copied chars
 
     ; ---------------------------------------------------------
     ; All checks passed - return true (1)
     ; ---------------------------------------------------------
     mov rax, TRUE
-    jmp .done
+    jmp done
 
-.invalid_arg_count:
+invalid_arg_count:
     mov rdi, invalidArgumentCount
     call printString
     mov rax, FALSE
-    jmp .done
-.invalid_f:
+    jmp done
+invalid_f:
     mov rdi, invalidFArgument
     call printString
     mov rax, FALSE
-    jmp .done
-.invalid_w:
+    jmp done
+invalid_w:
     mov rdi, invalidWArgument
     call printString
     mov rax, FALSE
-    jmp .done
-.invalid_file:
+    jmp done
+invalid_file:
     mov rdi, invalidFile
     call printString
     mov rax, FALSE
-    jmp .done
-.invalid_word_len:
+    jmp done
+invalid_word_len:
     mov rdi, invalidWord
     call printString
     mov rax, FALSE
-    jmp .done
-.done:
+    jmp done
+done:
     pop rbx
     pop rbp
     ret
@@ -221,32 +221,32 @@ getWord:
 
     ; Quick check: if fd invalid (<0 or 0), early EOF
     cmp r8, 0
-    jle .eof_reached
+    jle eof_reached
 
     ; ---------------------------------------------------------
     ; Skip leading whitespace (characters <= SPACE_ASCII)
     ; Loop until non-whitespace or EOF
     ; ---------------------------------------------------------
-.skip_whitespace:
+skip_whitespace:
     cmp rbx, [buffIndex]
-    jge .refill_for_skip
+    jge refill_for_skip
     ; Bounds check: if rbx >= BUFFSIZE, force refill
     mov rax, BUFFSIZE
     cmp rbx, rax
-    jae .refill_for_skip
+    jae refill_for_skip
     movzx eax, byte [r14 + rbx]
     cmp eax, SPACE_ASCII
-    jg .start_word
+    jg start_word
     inc rbx
-    jmp .skip_whitespace
-.refill_for_skip:
+    jmp skip_whitespace
+refill_for_skip:
     call refill_buffer
     cmp rax, 0
-    jle .eof_reached
+    jle eof_reached
     mov rbx, 0                   ; reset position after refill
-    jmp .skip_whitespace
+    jmp skip_whitespace
 
-.start_word:
+start_word:
     ; Found start of word (eax holds first non-whitespace char)
     inc rbx                      ; advance past first char
     mov [buffCurr], rbx          ; update global position
@@ -257,10 +257,10 @@ getWord:
     ; Copy first character if room
     ; ---------------------------------------------------------
     cmp r12, r10
-    jge .skip_copy_first
+    jge skip_copy_first
     mov [r9 + r12], al
     inc r12
-.skip_copy_first:
+skip_copy_first:
     inc r13                      ; count the char regardless
 
     ; ---------------------------------------------------------
@@ -268,23 +268,23 @@ getWord:
     ; Continue until whitespace or EOF
     ; Keep special characters (anything > space)
     ; ---------------------------------------------------------
-.collect_next_char:
+collect_next_char:
     cmp rbx, [buffIndex]
-    jge .refill_for_collect
+    jge refill_for_collect
     ; Bounds check
     mov rax, BUFFSIZE
     cmp rbx, rax
-    jae .refill_for_collect
+    jae refill_for_collect
     movzx eax, byte [r14 + rbx]
     inc rbx
     mov [buffCurr], rbx
     cmp eax, SPACE_ASCII
-    jg .process_char
-    jmp .end_word_collection
-.refill_for_collect:
+    jg process_char
+    jmp end_word_collection
+refill_for_collect:
     call refill_buffer
     cmp rax, 0
-    jle .end_word_collection
+    jle end_word_collection
     mov rbx, 0                   ; reset position after refill
     mov [buffCurr], rbx
     ; Bounds check for new char
@@ -292,20 +292,20 @@ getWord:
     inc rbx
     mov [buffCurr], rbx
     cmp eax, SPACE_ASCII
-    jg .process_char
-    jmp .end_word_collection
+    jg process_char
+    jmp end_word_collection
 
-.process_char:
+process_char:
     ; Copy char if within length limit
     cmp r12, r10
-    jge .skip_copy
+    jge skip_copy
     mov [r9 + r12], al
     inc r12
-.skip_copy:
+skip_copy:
     inc r13                      ; increment total length
-    jmp .collect_next_char
+    jmp collect_next_char
 
-.end_word_collection:
+end_word_collection:
     ; Null-terminate the copied portion
     mov byte [r9 + r12], NULL
 
@@ -319,20 +319,20 @@ getWord:
     ; to continue processing; validity checked in caller
     ; ---------------------------------------------------------
     cmp r13, rsi
-    jbe .word_is_valid           ; unsigned <=
+    jbe word_is_valid           ; unsigned <=
     mov byte [r11], FALSE
-    jmp .return_success
-.word_is_valid:
+    jmp return_success
+word_is_valid:
     mov byte [r11], TRUE
-.return_success:
+return_success:
     mov rax, TRUE
-    jmp .function_done
+    jmp function_done
 
-.eof_reached:
+eof_reached:
     mov byte [r11], FALSE
     mov rax, FALSE
 
-.function_done:
+function_done:
     pop r14
     pop r13
     pop r12
@@ -347,7 +347,7 @@ getWord:
 refill_buffer:
     ; Quick check fd
     cmp r8, 0
-    jl .end_read                 ; invalid fd, early out
+    jl end_read                 ; invalid fd, early out
     push rcx                     ; save caller-saved (syscall clobbers)
     push rdx
     push r11                     ; save r11 (clobbered by syscall)
@@ -360,16 +360,16 @@ refill_buffer:
     pop rdx
     pop rcx
     test rax, rax
-    js .end_read                 ; error (<0), set 0
-    jz .end_read                 ; EOF (0), set 0
+    js end_read                 ; error (<0), set 0
+    jz end_read                 ; EOF (0), set 0
     mov byte [buffer + rax], NULL ; null terminate
     mov [buffIndex], rax         ; store bytes read
     mov qword [buffCurr], 0      ; reset current position
     ret
-.end_read:
+end_read:
     mov qword [buffIndex], 0     ; set to 0 on error/EOF
     mov qword [buffCurr], 0
-    xor rax, rax                 ; return 0
+    mov rax, 0                 ; return 0
     ret
 
 ; rdi = char[] wordObtained
@@ -389,25 +389,25 @@ checkWord:
     mov rcx, rdi                 ; rcx = pointer to wordObtained
     mov r8, rsi                  ; r8 = pointer to wordToCheck
 
-.compare_loop:
+compare_loop:
     mov al, [rcx]                ; load next char from obtained
     cmp al, [r8]                 ; compare with toCheck
-    jne .mismatch                ; if not equal, no match
+    jne mismatch                ; if not equal, no match
     cmp al, NULL                 ; check for end of string (both should hit null at same time)
-    je .match_found              ; if null, exact match
+    je match_found              ; if null, exact match
     inc rcx                      ; advance pointers
     inc r8
-    jmp .compare_loop
+    jmp compare_loop
 
-.match_found:
+match_found:
     inc dword [rdx]              ; increment totalWords counter
     mov rax, TRUE                ; return TRUE
-    jmp .compare_done
+    jmp compare_done
 
-.mismatch:
+mismatch:
     mov rax, FALSE               ; return FALSE
 
-.compare_done:
+compare_done:
     pop rbp
     ret
 
