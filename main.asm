@@ -359,9 +359,8 @@ refill_buffer:
     pop r11                      ; restore r11
     pop rdx
     pop rcx
-    test rax, rax
-    js end_read                 ; error (<0), set 0
-    jz end_read                 ; EOF (0), set 0
+    cmp rax, 0
+    jle end_read                 ; error (<0) or EOF (0), set 0
     mov byte [buffer + rax], NULL ; null terminate
     mov [buffIndex], rax         ; store bytes read
     mov qword [buffCurr], 0      ; reset current position
